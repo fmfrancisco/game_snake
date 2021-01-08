@@ -1,6 +1,6 @@
 import pygame
-import random
 import sys
+import random
 from pygame.locals import *
 from pygame.math import Vector2
 
@@ -8,50 +8,65 @@ from pygame.math import Vector2
 class Snake:
     def __init__(self):
         self.body = [Vector2(3, 0), Vector2(2, 0), Vector2(1, 0)]
-        self.direction = Vector2(1, 0)
+        self.direction = RIGHT
         self.rect = None
+        self.movement = None
+        self.food = Fruit()
 
-    def draw(self, screen):
-        for blk in self.body:
-            self.rect = (blk.x * CELL_SIZE, blk.y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
-            pygame.draw.rect(screen, BLUE, self.rect)
+    def check_collision(self, objeto):
+        if self.body[0] == objeto.pos:
+            if self.direction == RIGHT:
+                self.body.insert(0, self.body[0] + Vector2(1, 0))
+            elif self.direction == LEFT:
+                self.body.insert(0, self.body[0] + Vector2(-1, 0))
+            elif self.direction == UP:
+                self.body.insert(0, self.body[0] + Vector2(0, -1))
+            elif self.direction == DOWN:
+                self.body.insert(0, self.body[0] + Vector2(0, 1))
+            objeto.new_pos()
+            print(self.body)
 
-    def move_snake(self):
+    def check_direction(self):
+        if self.direction == RIGHT:
+            self.movement = Vector2(1, 0)
+        elif self.direction == LEFT:
+            self.movement = Vector2(-1, 0)
+        elif self.direction == UP:
+            self.movement = Vector2(0, -1)
+        elif self.direction == DOWN:
+            self.movement = Vector2(0, +1)
+
+    def move(self):
+        self.check_direction()
         body_copy = self.body[:-1]
-        body_copy.insert(0, body_copy[0] + self.direction)
+        body_copy.insert(0, body_copy[0] + self.movement)
         self.body = body_copy[:]
 
-    def check_collision(self, obj):
-        if self.body[0] == obj.pos:
-            body_copy = self.body[:]
-            body_copy.insert(0, body_copy[0] + self.direction)
-            self.body = body_copy[:]
-            obj.reset_pos()
-
-    def check_fail(self):
-        if not 0 <= self.body[0].x < CELL_NUMBER or not 0 <= self.body[0].y < CELL_NUMBER:
-            self.game_over()
-        for blk in self.body[1:]:
-            if blk == self.body[0]:
-                self.game_over()
-
-    def game_over(self):
-        pygame.quit()
-        sys.exit()
+    def draw(self, screen):
+        for bd in self.body:
+            posx = int(bd.x * CELL_SIZE)
+            posy = int(bd.y * CELL_SIZE)
+            self.rect = (posx, posy, CELL_SIZE, CELL_SIZE)
+            pygame.draw.rect(screen, BLUE, self.rect)
 
 
-class Fruit:
+class Fruit(pygame.sprite.Sprite):
     def __init__(self):
-        self.reset_pos()
+        super().__init__()
+        self.image = pygame.Surface((CELL_SIZE, CELL_SIZE)).convert()
+        self.image.fill(RED)
+        x_random = random.randint(0, CELL_NUMBER - 1)
+        y_random = random.randint(0, CELL_NUMBER - 1)
+        self.pos = self.pos = Vector2(x_random, y_random)
+
+
+    def new_pos(self):
+        x_random = random.randint(0, CELL_NUMBER - 1)
+        y_random = random.randint(0, CELL_NUMBER - 1)
+        self.pos = Vector2(x_random, y_random)
 
     def draw(self, screen):
-        fruit = pygame.Rect(self.pos.x * CELL_NUMBER,self.pos.y * CELL_NUMBER, CELL_SIZE, CELL_SIZE)
-        pygame.draw.rect(screen, RED, fruit)
-
-    def reset_pos(self):
-        pos_x = random.randint(0, CELL_NUMBER - 1)
-        pos_y = random.randint(0, CELL_NUMBER - 1)
-        self.pos = Vector2(pos_x, pos_y)
+        screen.blit(self.image, (self.pos.x * CELL_NUMBER, self.pos.y * CELL_NUMBER))
 
 
 def terminate():
@@ -61,57 +76,61 @@ def terminate():
 
 CELL_SIZE = 20
 CELL_NUMBER = 20
-SCREEN_WIDTH = CELL_SIZE * CELL_NUMBER
-SCREEN_HEIGHT = CELL_SIZE * CELL_NUMBER
+WIDTH = int(CELL_SIZE * CELL_NUMBER)
+HEIGHT = int(CELL_SIZE * CELL_NUMBER)
 
-RED = pygame.Color('red')
-BLUE = pygame.Color('blue')
 WHITE = pygame.Color('white')
-FPS = 60
+BLUE = pygame.Color('blue')
+RED = pygame.Color('red')
+FPS = 30
+
+RIGHT = 'right'
+LEFT = 'left'
+UP = 'up'
+DOWN = 'down'
 
 
 def main():
     pygame.init()
 
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    SCREEN = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption('Snake')
-
-    SCREEN_UPDATE = USEREVENT
-    pygame.time.set_timer(SCREEN_UPDATE, 150)
+    BG_SCREEN = pygame.Surface(SCREEN.get_size()).convert()
+    BG_SCREEN.fill(WHITE)
+    SCREEN.blit(BG_SCREEN, (0, 0))
 
     snake = Snake()
     fruit = Fruit()
 
-    clock = pygame.time.Clock()
+    USER_EVENT = pygame.USEREVENT
+    pygame.time.set_timer(USER_EVENT, 200)
+    CLOCK = pygame.time.Clock()
 
     while True:
         for event in pygame.event.get():
             if event.type == QUIT:
                 terminate()
-            elif event.type == SCREEN_UPDATE:
-                snake.move_snake()
+            elif event.type == USER_EVENT:
+                snake.move()
             elif event.type == KEYDOWN:
-                if event.key == K_ESCAPE:
-                    terminate()
-                elif event.key == K_UP:
-                    snake.direction = Vector2(0, -1)
-                elif event.key == K_DOWN:
-                    snake.direction = Vector2(0, 1)
-                elif event.key == K_RIGHT:
-                    snake.direction = Vector2(1, 0)
-                elif event.key == K_LEFT:
-                    snake.direction = Vector2(-1, 0)
+                if event.key == K_UP and snake.direction != DOWN:
+                    snake.direction = UP
+                elif event.key == K_DOWN and snake.direction != UP:
+                    snake.direction = DOWN
+                elif event.key == K_RIGHT and snake.direction != LEFT:
+                    snake.direction = RIGHT
+                elif event.key == K_LEFT and snake.direction != RIGHT:
+                    snake.direction = LEFT
 
-        screen.fill(WHITE)
+        SCREEN.blit(BG_SCREEN, (0, 0))
 
         snake.check_collision(fruit)
-        snake.check_fail()
 
-        snake.draw(screen)
-        fruit.draw(screen)
+        snake.draw(SCREEN)
+        fruit.draw(SCREEN)
 
         pygame.display.update()
-        clock.tick(FPS)
+        CLOCK.tick(FPS)
 
 
 if __name__ == '__main__':
