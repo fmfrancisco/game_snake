@@ -4,6 +4,8 @@ import random
 from pygame.locals import *
 from pygame.math import Vector2
 
+# pip install pygame
+# pip install pygame upgrade
 
 class Snake:
     def __init__(self):
